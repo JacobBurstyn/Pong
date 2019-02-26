@@ -1,0 +1,209 @@
+package com.company;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.util.Properties;
+
+public class PongPanel extends JPanel {
+    private int wheelReactionMultiple = 15;
+    private int upOrDown;
+    private Point rightPaddle = new Point(620, 220);
+    private Point leftPaddle = new Point(70, 220);
+    private Point ball = new Point(350, 250);
+    private Point delta = new Point(3, 3);
+    private Timer timer;
+    private int computerScore =0;
+    private int playerScore=0;
+    private JLabel leftPlayer;
+    private JLabel rightPlayer;
+    private JLabel highScoreLabel;
+    private int highScoreNum;
+
+    public PongPanel() {
+
+        JFrame jf = new JFrame();
+        this.setFocusable(true);
+        jf.setFocusable(true);
+        jf.setVisible(true);
+        jf.setSize(700, 500);
+        jf.addWindowListener(new WindowAdapter() {
+            final String WindowLocationX = "WindowLocationX";
+            final String WindowLocationY = "WindowLocationY";
+            final String HighScore = "HighScore";
+
+            @Override
+            public void windowOpened(WindowEvent e) {
+                Properties appProps = new Properties();
+                try {
+                    InputStream is = new FileInputStream("appsProperties.bin");
+                    appProps.load(is);
+                } catch (FileNotFoundException e1) {
+                    e1.printStackTrace();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+                Point p = new Point();
+                p.x = Integer.parseInt(appProps.getProperty(WindowLocationX));
+                p.y = Integer.parseInt(appProps.getProperty(WindowLocationY));
+                jf.setLocation(p);
+                PongPanel.this.highScoreNum = Integer.parseInt(appProps.getProperty(HighScore));
+                PongPanel.this.highScoreLabel.setText("High Score: " + highScoreNum);
+                System.out.println(p);
+            }
+
+            @Override
+            public void windowClosing(WindowEvent e) {
+                Point p = jf.getLocation();
+                Properties appProps = new Properties();
+                appProps.setProperty(WindowLocationX, p.x + "");
+                appProps.setProperty(WindowLocationY, p.y + "");
+                appProps.setProperty(HighScore, highScoreNum + "");
+                try {
+                    OutputStream os = new FileOutputStream("appsProperties.bin");
+                    appProps.store(os, "cool comment");
+                } catch (FileNotFoundException e1) {
+                    e1.printStackTrace();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+                System.out.println(p);
+                System.exit(0);
+            }
+        });
+        jf.add(this, BorderLayout.CENTER);
+        JLabel statusBar = new JLabel("Welcome to Pong!");
+        JButton start = new JButton("Start");
+        start.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                timer.start();
+            }
+        });
+        statusBar.setLayout(new BorderLayout());
+        statusBar.add(BorderLayout.EAST, start);
+        jf.add(statusBar, BorderLayout.SOUTH);
+        JPanel scorePanel = new JPanel();
+        leftPlayer = new JLabel("Computer: 0");
+        rightPlayer = new JLabel("Player: 0");
+        highScoreLabel = new JLabel("High Score: " + highScoreNum);
+        scorePanel.setLayout(new GridLayout(1, 3));
+        scorePanel.add(leftPlayer);
+        scorePanel.add(rightPlayer);
+        scorePanel.add(highScoreLabel);
+        jf.add(scorePanel, BorderLayout.NORTH);
+        timer = new Timer(40, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                updateBall();
+                updateLeftPaddle();
+                updateRightPaddle(upOrDown);
+                repaint();
+            }
+        });
+        jf.addMouseWheelListener(new MouseAdapter() {
+            @Override
+            public void mouseWheelMoved(MouseWheelEvent e) {
+                super.mouseWheelMoved(e);
+                int d = e.getWheelRotation();
+                updateRightPaddle(d);
+            }
+        });
+        jf.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                super.keyPressed(e);
+                //up arrow
+                if(e.getKeyCode() == 38){
+                    updateRightPaddle(-1);
+                }
+                // down arrow
+                else if(e.getKeyCode() == 40){
+                    updateRightPaddle(1);
+                }
+            }
+        });
+    }
+
+    private void updateBall() {
+        if (delta.x > 0 && ball.x + 10 >= rightPaddle.x && ball.x <= rightPaddle.x + 10 && ball.y >= rightPaddle.y && ball.y <= rightPaddle.y + 60) {
+            // hits player1's paddle
+            delta.x = -delta.x;
+            playerScore++;
+            rightPlayer.setText("Player Score: " + playerScore);
+            if (computerScore > highScoreNum) {
+                highScoreNum = computerScore;
+                highScoreLabel.setText("HighScore: " + highScoreNum);
+            }
+        }
+        else if (delta.x < 0 && ball.x <= leftPaddle.x + 10 && ball.x >= leftPaddle.x && ball.y >= leftPaddle.y && ball.y <= leftPaddle.y + 60) {
+            // hits computer's paddle
+            delta.x = -delta.x;
+            computerScore++;
+            leftPlayer.setText("Computer Score: " + computerScore);
+            if (playerScore > highScoreNum) {
+                highScoreNum = playerScore;
+                highScoreLabel.setText("HighScore: " + highScoreNum);
+            }
+        }
+        if (ball.x + delta.x <= 50 || ball.x + delta.x >= 640) {
+            // Computer wins Game over.
+            if(ball.x>=640) {
+                ball.x = 350;
+                ball.y = 250;
+                System.out.println("Game Over: Computer wins!   press start to play again");
+                timer.stop();
+                playerScore = 0;
+                computerScore = 0;
+                leftPlayer.setText("Computer: 0");
+                rightPlayer.setText("Player: 0");
+            }else{
+                // Player1 wins Game over.
+                ball.x = 350;
+                ball.y = 250;
+                System.out.println("Game Over: Player1 wins!   press start to play again");
+                timer.stop();
+                playerScore = 0;
+                computerScore = 0;
+                leftPlayer.setText("Computer: 0");
+                rightPlayer.setText("Player: 0");
+            }
+        } else if (ball.y + delta.y <= 50 || ball.y + delta.y >= 440) {
+            delta.y = -delta.y;
+        }
+        ball.x += delta.x;
+        ball.y += delta.y;
+    }
+
+    private void updateRightPaddle(int movement) {
+        if (rightPaddle.y + (wheelReactionMultiple * movement) < 50 || rightPaddle.y + (wheelReactionMultiple * movement) > 390) {
+            return;
+        }
+        rightPaddle.y +=(wheelReactionMultiple * movement);
+        upOrDown = movement;
+        repaint();
+    }
+
+    private void updateLeftPaddle() {
+        if (delta.x < 0) {
+            if (leftPaddle.y + 30 > ball.y) {
+                leftPaddle.y -= 3;
+            } else if (leftPaddle.y + 30 < ball.y) {
+                leftPaddle.y += 3;
+            }
+        }
+    }
+
+    @Override
+    public void paint(Graphics g) {
+        super.paint(g);
+        g.setColor(Color.ORANGE);
+        g.fillRect(50, 50, 600, 400);
+        g.setColor(Color.BLUE);
+        g.fillRect(rightPaddle.x, rightPaddle.y, 10, 60);
+        g.fillRect(leftPaddle.x, leftPaddle.y, 10, 60);
+        g.setColor(Color.magenta);
+        g.fillOval(ball.x, ball.y, 10, 10);
+    }
+}
